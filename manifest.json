@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.ilyazar.cliamp",
+  "name": "CLIamp Window Control",
+  "version": "0.1.0",
+  "author": "ilyaZar",
+  "license": "MIT",
+  "description": "Keeps the CLIamp quake window below the Omarchy bar and exposes compact geometry settings.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "CLIamp Window Control",
+    "description": "Toggle CLIamp and set its alignment and size.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "alignment": "Center",
+      "windowWidth": 1200,
+      "windowHeight": 600,
+      "iconVisible": true
+    },
+    "schema": [
+      {
+        "key": "alignment",
+        "type": "enum",
+        "label": "Horizontal alignment",
+        "options": [
+          "Left",
+          "Center",
+          "Right"
+        ],
+        "defaultValue": "Center"
+      },
+      {
+        "key": "windowWidth",
+        "type": "integer",
+        "label": "Window width",
+        "min": 1,
+        "max": 100000,
+        "step": 50,
+        "defaultValue": 1200
+      },
+      {
+        "key": "windowHeight",
+        "type": "integer",
+        "label": "Window height",
+        "min": 1,
+        "max": 100000,
+        "step": 50,
+        "defaultValue": 600
+      },
+      {
+        "key": "iconVisible",
+        "type": "boolean",
+        "label": "Show bar icon",
+        "defaultValue": true
+      }
+    ]
+  }
+}

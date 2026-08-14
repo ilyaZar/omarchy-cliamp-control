@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Restore CLIamp Widget
+Comment=Restore the CLIamp Omarchy bar icon
+Exec=cliamp-widget
+TryExec=cliamp-widget
+Icon=io.github.ilyazar.cliamp
+Terminal=false
+StartupNotify=false
+Categories=Utility;
+Keywords=CLIamp;widget;restore;bar;
