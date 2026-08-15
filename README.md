@@ -26,8 +26,8 @@ usable rectangle, below any reserved screen area.
 The plugin does not change CLIamp's audio sources or edit Hyprland configuration
 files. Its binding adapter launches the managed app ID
 `org.omarchy.cliamp.quake` through Omarchy's native TUI launcher. The ordinary
-`org.omarchy.cliamp` app ID is deliberately excluded. Existing
-`org.omarchy.quake.music` windows remain supported for migration.
+`org.omarchy.cliamp` app ID and older `org.omarchy.quake.music` windows are
+deliberately excluded.
 
 ## Install
 
@@ -60,9 +60,8 @@ supported `updateEntryInline` method. The recovery helper uses `omarchy bar`
 commands instead of editing `shell.json`.
 
 The service listens for relevant Hyprland window, workspace, special-workspace,
-and monitor events. It selects only `org.omarchy.cliamp.quake`, with the old
-`org.omarchy.quake.music` class as a migration fallback. A tiled managed window
-is floated before its exact size and position are applied.
+and monitor events. It selects only `org.omarchy.cliamp.quake`. A tiled managed
+window is floated before its exact size and position are applied.
 
 While no client exists, a fallback check backs off from two seconds to fifteen
 seconds. There is no periodic polling after a client is found. If CLIamp was
@@ -81,7 +80,9 @@ Stock Omarchy binds `Super+Shift+Alt+M` to `Music TUI`. The plugin scans the
 effective Lua configuration and recognizes CLIamp by its launch command, so a
 user may change the key or description. It also recognizes the older
 `quake_toggle.sh music` action. Every matching key is rebound in Hyprland's
-running session to the shipped adapter while the plugin is enabled.
+running session to the shipped adapter while the plugin is enabled. Supported
+Hyprland binding options, including release behavior and device filters, are
+preserved.
 
 The source configuration is never rewritten. Disabling or removing the plugin
 reloads the Hyprland configuration so each original action is restored. A
@@ -159,13 +160,14 @@ tests/test_toggle.sh
 tests/test_bindings.sh
 tests/test_keybindings.sh
 tests/test_recovery.sh
+tests/test_teardown.sh
 qmllint -I /usr/share/omarchy/shell Service.qml BarWidget.qml
 ```
 
 The tests cover transformed and scaled monitors, reserved margins, exact
 floating geometry, managed and legacy client selection, launch/show/hide
 behavior, command-based effective binding consumption, ordinary CLIamp
-isolation, and idempotent icon recovery.
+isolation, guarded teardown, and idempotent icon recovery.
 
 ## Logo license
 

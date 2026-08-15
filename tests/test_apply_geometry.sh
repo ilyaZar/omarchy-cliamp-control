@@ -49,6 +49,14 @@ JSON
   },
   {
     "address": "0xdef",
+    "class": "org.omarchy.quake.music",
+    "initialClass": "org.omarchy.quake.music",
+    "monitor": 1,
+    "workspace": {"name": "special:music"},
+    "floating": true
+  },
+  {
+    "address": "0x123",
     "class": "unrelated",
     "initialClass": "unrelated",
     "monitor": 1,

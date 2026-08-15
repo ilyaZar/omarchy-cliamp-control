@@ -18,7 +18,14 @@ require("default.hypr.helpers")
 o.bind(
   "SUPER + SHIFT + ALT + M",
   "My renamed player",
-  { tui = "cliamp", focus = true }
+  { tui = "cliamp", focus = true },
+  {
+    mouse = true,
+    release = true,
+    locked = true,
+    non_consuming = true,
+    device = { inclusive = true, list = { "kbd one", "kbd-two" } },
+  }
 )
 hl.bind(
   "F12",
@@ -29,7 +36,11 @@ hl.unbind("F12")
 hl.bind(
   "F11",
   hl.dsp.exec_cmd("~/.config/hypr/scripts/quake_toggle.sh music"),
-  { description = "Moved music drop-down" }
+  {
+    description = "Moved music drop-down",
+    repeating = false,
+    dont_inhibit = true,
+  }
 )
 hl.bind(
   "SUPER + A",
@@ -69,12 +80,31 @@ jq -e '
   and .bindings[0].keys == "F11"
   and .bindings[1].keys == "SUPER + SHIFT + ALT + M"
   and .bindings[1].description == "My renamed player"
+  and .bindings[1].options.mouse == true
+  and .bindings[0].options.repeating == false
+  and .bindings[0].options.dont_inhibit == true
+  and .bindings[1].options.release == true
+  and .bindings[1].options.locked == true
+  and .bindings[1].options.non_consuming == true
+  and .bindings[1].options.device == {
+    inclusive: true,
+    list: ["kbd one", "kbd-two"]
+  }
 ' >/dev/null <<<"$result"
 
 grep -Fq 'hl.unbind("F11")' "$CLIAMP_TEST_EXPRESSION"
 grep -Fq 'hl.unbind("SUPER + SHIFT + ALT + M")' \
   "$CLIAMP_TEST_EXPRESSION"
 grep -Fq 'scripts/toggle_cliamp.sh' "$CLIAMP_TEST_EXPRESSION"
+grep -Fq 'mouse = true' "$CLIAMP_TEST_EXPRESSION"
+grep -Fq 'repeating = false' "$CLIAMP_TEST_EXPRESSION"
+grep -Fq 'dont_inhibit = true' "$CLIAMP_TEST_EXPRESSION"
+grep -Fq 'release = true' "$CLIAMP_TEST_EXPRESSION"
+grep -Fq 'locked = true' "$CLIAMP_TEST_EXPRESSION"
+grep -Fq 'non_consuming = true' "$CLIAMP_TEST_EXPRESSION"
+grep -Fq \
+  'device = { inclusive = true, list = { "kbd one", "kbd-two" } }' \
+  "$CLIAMP_TEST_EXPRESSION"
 if grep -Fq 'hl.unbind("F12")' "$CLIAMP_TEST_EXPRESSION"; then
   printf 'removed binding was incorrectly restored\n' >&2
   exit 1

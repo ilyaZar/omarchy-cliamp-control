@@ -23,11 +23,63 @@ Item {
   property string bindingOutput: ""
   property string bindingError: ""
   property bool bindingRerunPending: false
+  property bool tearingDown: false
 
+  readonly property string pluginId: "io.github.ilyazar.cliamp"
+  readonly property string managedClass: "org.omarchy.cliamp.quake"
+  readonly property string pluginDir: localPath(Qt.resolvedUrl("."))
   readonly property string applyScript: localPath(
     Qt.resolvedUrl("scripts/apply_geometry.sh"))
   readonly property string bindingScript: localPath(
     Qt.resolvedUrl("scripts/sync_bindings.sh"))
+  readonly property string teardownCommand: [
+    "plugin_dir=\"$1\"",
+    "plugin_id=\"$2\"",
+    "managed_class=\"$3\"",
+    "client_filter='.[] | select(.class == $class'",
+    "client_filter+=' or .initialClass == $class) | .address'",
+    "poll_attempts=\"$4\"",
+    "poll_interval=\"$5\"",
+    "enabled_attempts=\"$6\"",
+    "enabled_interval=\"$7\"",
+    "hyprctl reload config-only >/dev/null 2>&1 || true",
+    "sleep \"$enabled_interval\"",
+    "plugin_state=\"absent\"",
+    "if [[ -e $plugin_dir ]]; then",
+    "  plugin_state=\"unknown\"",
+    "  plugin_filter='[.[] | select(.id == $id)]'",
+    "  plugin_filter+=' | if length != 1 then \"unknown\"'",
+    "  plugin_filter+=' elif .[0].enabled == true then \"enabled\"'",
+    "  plugin_filter+=' elif .[0].enabled == false then \"disabled\"'",
+    "  plugin_filter+=' else \"unknown\" end'",
+    "  for ((attempt = 0; attempt < enabled_attempts; attempt++)); do",
+    "    plugin_json=\"\"",
+    "    if plugin_json=\"$(omarchy plugin list --json 2>/dev/null)\"; then",
+    "      plugin_state=\"$(jq -r --arg id \"$plugin_id\" \\",
+    "        \"$plugin_filter\" <<<\"$plugin_json\" 2>/dev/null \\",
+    "        || printf 'unknown')\"",
+    "      [[ $plugin_state == \"enabled\" ]] && exit 0",
+    "      [[ $plugin_state == \"disabled\" ]] && break",
+    "    fi",
+    "    sleep \"$enabled_interval\"",
+    "  done",
+    "  [[ $plugin_state == \"unknown\" && -e $plugin_dir ]] && exit 0",
+    "fi",
+    "for ((attempt = 0; attempt < poll_attempts; attempt++)); do",
+    "  clients_json=\"$(hyprctl clients -j 2>/dev/null || printf '[]')\"",
+    "  while IFS= read -r address; do",
+    "    [[ $address =~ ^0x[0-9A-Fa-f]+$ ]] || continue",
+    "    hyprctl dispatch \\",
+    "      \"hl.dsp.window.close({ window = \\\"address:$address\\\" })\" \\",
+    "      >/dev/null 2>&1 || true",
+    "  done < <(",
+    "    jq -r --arg class \"$managed_class\" \\",
+    "      \"$client_filter\" <<<\"$clients_json\" 2>/dev/null || true",
+    "  )",
+    "  sleep \"$poll_interval\"",
+    "done",
+    "hyprctl reload config-only >/dev/null 2>&1 || true"
+  ].join("\n")
 
   function localPath(url) {
     var value = String(url || "")
@@ -89,11 +141,13 @@ Item {
   }
 
   function scheduleApply(delayMs) {
+    if (tearingDown) return
     applyTimer.interval = Math.max(20, Number(delayMs || 120))
     applyTimer.restart()
   }
 
   function applyGeometry() {
+    if (tearingDown) return
     if (applyProcess.running) {
       rerunPending = true
       return
@@ -111,6 +165,7 @@ Item {
   }
 
   function syncBindings() {
+    if (tearingDown) return
     if (bindingProcess.running) {
       bindingRerunPending = true
       return
@@ -122,6 +177,7 @@ Item {
   }
 
   function acceptBindingResult(exitCode) {
+    if (tearingDown) return
     var parsed = null
     try {
       parsed = JSON.parse(String(bindingOutput || "").trim())
@@ -152,6 +208,7 @@ Item {
   }
 
   function acceptResult(exitCode) {
+    if (tearingDown) return
     var parsed = null
     var raw = String(processOutput || "").trim()
     if (raw !== "") {
@@ -202,6 +259,7 @@ Item {
   }
 
   function handleHyprlandEvent(event) {
+    if (tearingDown) return
     var name = eventName(event)
     var relevant = [
       "openwindow",
@@ -221,6 +279,32 @@ Item {
     ]
     if (relevant.indexOf(name) >= 0) scheduleApply(120)
     if (name === "configreloaded") bindingTimer.restart()
+  }
+
+  function teardown() {
+    if (tearingDown) return
+    tearingDown = true
+    applyTimer.stop()
+    bindingTimer.stop()
+    absentRetryTimer.stop()
+    rerunPending = false
+    bindingRerunPending = false
+    if (applyProcess.running) applyProcess.running = false
+    if (bindingProcess.running) bindingProcess.running = false
+
+    Quickshell.execDetached([
+      "bash",
+      "-c",
+      teardownCommand,
+      "cliamp-teardown",
+      pluginDir,
+      pluginId,
+      managedClass,
+      "100",
+      "0.05",
+      "10",
+      "0.1"
+    ])
   }
 
   onShellChanged: refreshSettingsFromShell()
@@ -249,10 +333,11 @@ Item {
   }
 
   Timer {
+    id: absentRetryTimer
     interval: Math.min(15000, 2000 * Math.pow(2,
       Math.min(root.absentRetryCount, 3)))
-    running: root.lastStatus === "absent"
-      || root.lastStatus === "unavailable"
+    running: !root.tearingDown && (root.lastStatus === "absent"
+      || root.lastStatus === "unavailable")
     repeat: true
     onTriggered: {
       root.absentRetryCount++
@@ -294,7 +379,5 @@ Item {
     root.syncBindings()
   })
 
-  Component.onDestruction: Quickshell.execDetached([
-    "hyprctl", "reload", "config-only"
-  ])
+  Component.onDestruction: root.teardown()
 }

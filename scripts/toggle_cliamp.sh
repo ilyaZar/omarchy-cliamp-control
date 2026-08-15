@@ -5,7 +5,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 readonly STOCK_WORKSPACE="cliamp"
-readonly LEGACY_WORKSPACE="music"
 
 # shellcheck source=lib/clients.sh
 source "$SCRIPT_DIR/../lib/clients.sh"
@@ -30,25 +29,12 @@ first_client_json() {
   cliamp_managed_clients_json "$clients_json" | jq -c '.[0] // null'
 }
 
-workspace_for_client() {
-  local client_json="$1"
-
-  if jq -e --arg legacy "$CLIAMP_LEGACY_CLASS" '
-    .class == $legacy or .initialClass == $legacy
-  ' >/dev/null <<<"$client_json"; then
-    printf '%s\n' "$LEGACY_WORKSPACE"
-  else
-    printf '%s\n' "$STOCK_WORKSPACE"
-  fi
-}
-
 require_command jq
 require_command hyprctl
 
 client_json="$(first_client_json)"
 if [[ $client_json != "null" ]]; then
-  workspace="$(workspace_for_client "$client_json")"
-  if ! quake_toggle_client "$client_json" "$workspace"; then
+  if ! quake_toggle_client "$client_json" "$STOCK_WORKSPACE"; then
     notify_error "Hyprland returned an invalid window address"
     exit 1
   fi
@@ -80,8 +66,7 @@ if [[ $client_json == "null" ]]; then
   exit 1
 fi
 
-workspace="$(workspace_for_client "$client_json")"
-if ! quake_toggle_client "$client_json" "$workspace"; then
+if ! quake_toggle_client "$client_json" "$STOCK_WORKSPACE"; then
   notify_error "Hyprland returned an invalid window address"
   exit 1
 fi

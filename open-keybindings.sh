@@ -12,10 +12,14 @@ if [[ -r $BINDINGS_FILE ]]; then
   target_line=$(awk '
     {
       line = tolower($0)
+      if (line ~ /^[[:space:]]*(o|hl)\.bind[[:space:]]*\(/) {
+        bind_start = NR
+      }
       matches_description = line ~ /(cliamp drop-down|music tui)/
       matches_command = line ~ /(toggle_cliamp\.sh|quake_toggle\.sh[[:space:]]+music|omarchy-launch-(or-focus-)?tui[[:space:]]+cliamp)/
-      if (matches_description || matches_command) {
-        print NR
+      matches_tui = line ~ /tui[[:space:]]*=[[:space:]]*["\047]cliamp["\047]/
+      if (matches_description || matches_command || matches_tui) {
+        print (bind_start > 0 ? bind_start : NR)
         exit
       }
     }

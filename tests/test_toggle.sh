@@ -30,7 +30,7 @@ client_json() {
 case "${1:-}" in
   clients)
     mode="$(cat "$CLIAMP_TEST_MODE")"
-    if [[ ( $mode == "absent" || $mode == "stock" ) \
+    if [[ ( $mode == "absent" || $mode == "stock" || $mode == "legacy" ) \
       && -e $CLIAMP_TEST_LAUNCHED ]]; then
       mode="managed"
       printf '%s\n' "$mode" >"$CLIAMP_TEST_MODE"
@@ -140,7 +140,13 @@ grep -Fq 'workspace = "special:cliamp"' "$CLIAMP_TEST_CALLS"
 
 reset_case legacy "special:music"
 run_toggle
-[[ ! -s $CLIAMP_TEST_VISIBLE ]]
-[[ $(grep -Fc 'toggle_special("music")' "$CLIAMP_TEST_CALLS") -eq 1 ]]
+grep -Fxq -- '--app-id=org.omarchy.cliamp.quake cliamp' \
+  "$CLIAMP_TEST_CALLS"
+grep -Fq 'workspace = "special:cliamp"' "$CLIAMP_TEST_CALLS"
+grep -Fq 'toggle_special("cliamp")' "$CLIAMP_TEST_CALLS"
+if grep -Fq 'special:music' "$CLIAMP_TEST_CALLS"; then
+  printf 'legacy CLIamp window was incorrectly managed\n' >&2
+  exit 1
+fi
 
-printf 'ok - binding-managed and legacy drop-down toggles\n'
+printf 'ok - only binding-managed CLIamp toggles\n'

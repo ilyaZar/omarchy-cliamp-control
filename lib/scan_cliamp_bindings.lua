@@ -5,6 +5,21 @@ local config = arg[1]
   or (os.getenv("HOME") .. "/.config/hypr/hyprland.lua")
 local bindings = {}
 local order = {}
+local boolean_options = {
+  "mouse",
+  "repeating",
+  "locked",
+  "release",
+  "non_consuming",
+  "transparent",
+  "ignore_mods",
+  "dont_inhibit",
+  "long_press",
+  "submap_universal",
+  "click",
+  "drag",
+  "allow_input_capture",
+}
 
 local function dispatcher(kind, value)
   return {
@@ -61,6 +76,37 @@ noop = setmetatable({}, {
   end,
 })
 
+local function copy_bind_options(opts)
+  local source = type(opts) == "table" and opts or {}
+  local copied = {}
+
+  for _, name in ipairs(boolean_options) do
+    if type(source[name]) == "boolean" then
+      copied[name] = source[name]
+    end
+  end
+
+  if type(source.device) == "table" then
+    local device = {}
+    if type(source.device.inclusive) == "boolean" then
+      device.inclusive = source.device.inclusive
+    end
+    if type(source.device.list) == "table" then
+      device.list = {}
+      for _, value in ipairs(source.device.list) do
+        if type(value) == "string" then
+          device.list[#device.list + 1] = value
+        end
+      end
+    end
+    if next(device) ~= nil then
+      copied.device = device
+    end
+  end
+
+  return copied
+end
+
 local function remember(keys, bind_dispatcher, opts)
   keys = tostring(keys or "")
   if keys == "" then
@@ -75,13 +121,15 @@ local function remember(keys, bind_dispatcher, opts)
     value = bind_dispatcher.value
   end
 
+  opts = type(opts) == "table" and opts or {}
   if bindings[keys] == nil then
     order[#order + 1] = keys
   end
   bindings[keys] = {
     keys = keys,
-    description = tostring((opts or {}).description or ""),
+    description = tostring(opts.description or opts.desc or ""),
     command = value,
+    options = copy_bind_options(opts),
   }
   return noop
 end
@@ -147,6 +195,37 @@ local function json_string(value)
     :gsub("\t", "\\t") .. "\""
 end
 
+local function json_options(options)
+  local fields = {}
+
+  for _, name in ipairs(boolean_options) do
+    if type(options[name]) == "boolean" then
+      fields[#fields + 1] = json_string(name) .. ":"
+        .. tostring(options[name])
+    end
+  end
+
+  if type(options.device) == "table" then
+    local device_fields = {}
+    if type(options.device.inclusive) == "boolean" then
+      device_fields[#device_fields + 1] = '"inclusive":'
+        .. tostring(options.device.inclusive)
+    end
+    if type(options.device.list) == "table" then
+      local values = {}
+      for _, value in ipairs(options.device.list) do
+        values[#values + 1] = json_string(value)
+      end
+      device_fields[#device_fields + 1] = '"list":['
+        .. table.concat(values, ",") .. "]"
+    end
+    fields[#fields + 1] = '"device":{'
+      .. table.concat(device_fields, ",") .. "}"
+  end
+
+  return "{" .. table.concat(fields, ",") .. "}"
+end
+
 local matches = {}
 for _, keys in ipairs(order) do
   local binding = bindings[keys]
@@ -183,6 +262,7 @@ for index, binding in ipairs(matches) do
   end
   io.write("{\"keys\":", json_string(binding.keys))
   io.write(",\"description\":", json_string(binding.description))
-  io.write(",\"command\":", json_string(binding.command), "}")
+  io.write(",\"command\":", json_string(binding.command))
+  io.write(",\"options\":", json_options(binding.options), "}")
 end
 io.write("]\n")

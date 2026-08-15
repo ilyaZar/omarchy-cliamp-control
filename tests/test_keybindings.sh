@@ -20,10 +20,11 @@ mkdir -p "$(dirname "$BINDINGS_FILE")" "$(dirname "$EDITOR_STATE")" \
   "$MOCK_BIN"
 printf '%s\n' \
   '-- Personal application bindings' \
+  'o.bind("SUPER + A", "Browser", { omarchy = "browser" })' \
   'o.bind(' \
   '  "SUPER + SHIFT + ALT + M",' \
-  '  "Music TUI",' \
-  '  "omarchy-launch-or-focus-tui cliamp"' \
+  '  "My renamed player",' \
+  '  { tui = "cliamp", focus = true }' \
   ')' >"$BINDINGS_FILE"
 printf 'nvim\n' >"$EDITOR_STATE"
 
@@ -39,8 +40,20 @@ chmod 0755 "$MOCK_BIN/omarchy-launch-editor" \
 PATH="$MOCK_BIN:$PATH" "$TEST_DIR/../open-keybindings.sh"
 mapfile -t editor_args <"$CAPTURE_FILE"
 
-[[ ${editor_args[0]} == "+4" ]]
+[[ ${editor_args[0]} == "+3" ]]
 [[ ${editor_args[1]} == "+normal! zz" ]]
 [[ ${editor_args[2]} == "$BINDINGS_FILE" ]]
 
-printf 'ok - keybinding editor target\n'
+printf '%s\n' \
+  '-- Personal application bindings' \
+  'o.bind("F10", "Another name", { tui = "cliamp", focus = true })' \
+  >"$BINDINGS_FILE"
+
+PATH="$MOCK_BIN:$PATH" "$TEST_DIR/../open-keybindings.sh"
+mapfile -t editor_args <"$CAPTURE_FILE"
+
+[[ ${editor_args[0]} == "+2" ]]
+[[ ${editor_args[1]} == "+normal! zz" ]]
+[[ ${editor_args[2]} == "$BINDINGS_FILE" ]]
+
+printf 'ok - renamed table-form keybinding editor target\n'
