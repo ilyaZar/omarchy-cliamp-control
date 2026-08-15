@@ -2,22 +2,21 @@
   "schemaVersion": 1,
   "id": "io.github.ilyazar.cliamp",
   "name": "CLIamp Window Control",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "ilyaZar",
   "license": "MIT",
-  "description": "Keeps the CLIamp quake window below the Omarchy bar and exposes compact geometry settings.",
+  "description": "Turns stock Omarchy CLIamp into a configurable drop-down window with compact bar controls.",
   "kinds": [
     "service",
     "bar-widget"
   ],
-  "keepLoaded": true,
   "entryPoints": {
     "service": "Service.qml",
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "CLIamp Window Control",
-    "description": "Toggle CLIamp and set its alignment and size.",
+    "description": "Toggle stock CLIamp and set its alignment and size.",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right",

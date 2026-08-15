@@ -2,10 +2,11 @@
 
 set -euo pipefail
 
-readonly TARGET_CLASS="org.omarchy.quake.music"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 
+# shellcheck source=lib/clients.sh
+source "$SCRIPT_DIR/../lib/clients.sh"
 # shellcheck source=lib/geometry.sh
 source "$SCRIPT_DIR/../lib/geometry.sh"
 
@@ -29,14 +30,9 @@ fi
 
 clients_json="$(hyprctl clients -j)"
 monitors_json="$(hyprctl monitors -j)"
-client_count="$(
-  jq -r --arg class "$TARGET_CLASS" \
-    '[.[] | select(.class == $class)] | length' <<<"$clients_json"
-)"
-client_json="$(
-  jq -c --arg class "$TARGET_CLASS" \
-    '[.[] | select(.class == $class)] | .[0] // null' <<<"$clients_json"
-)"
+matched_clients="$(cliamp_supported_clients_json "$clients_json")"
+client_count="$(jq -r 'length' <<<"$matched_clients")"
+client_json="$(jq -c '.[0] // null' <<<"$matched_clients")"
 
 geometry_json="$(
   cliamp_geometry_json \
@@ -52,6 +48,11 @@ geometry_json="$(
 )"
 
 if [[ $client_json == "null" ]]; then
+  if ! command -v cliamp >/dev/null 2>&1; then
+    geometry_json="$(
+      jq -c '.status = "unavailable"' <<<"$geometry_json"
+    )"
+  fi
   printf '%s\n' "$geometry_json"
   exit 0
 fi
@@ -67,16 +68,29 @@ IFS=$'\t' read -r x y width height < <(
     <<<"$geometry_json"
 )
 
-printf -v dispatch_expression \
+dispatch_expression=""
+if [[ $(jq -r '.floating == true' <<<"$client_json") != "true" ]]; then
+  printf -v dispatch_expression \
+    'hl.dispatch(hl.dsp.window.float({ action = "toggle", window = "address:%s" })); ' \
+    "$address"
+fi
+
+printf -v geometry_expression \
   'hl.dispatch(hl.dsp.window.resize({ x = %d, y = %d, relative = false, window = "address:%s" })); hl.dispatch(hl.dsp.window.move({ x = %d, y = %d, relative = false, window = "address:%s" }))' \
   "$width" "$height" "$address" "$x" "$y" "$address"
+dispatch_expression+="$geometry_expression"
 
 hyprctl eval "$dispatch_expression" >/dev/null
 
 observed_json="$(
   hyprctl clients -j | jq -c --arg address "$address" '
     [.[] | select(.address == $address)][0]
-    | if . == null then null else {at: .at, size: .size, workspace: .workspace.name} end
+    | if . == null then null else {
+        at: .at,
+        size: .size,
+        floating: .floating,
+        workspace: .workspace.name
+      } end
   '
 )"
 
@@ -86,7 +100,8 @@ result_json="$(
     --argjson observed "$observed_json" '
       $geometry + {
         status: (if $observed == null then "vanished"
-          elif $observed.at == [$geometry.actual.x, $geometry.actual.y]
+          elif $observed.floating == true
+            and $observed.at == [$geometry.actual.x, $geometry.actual.y]
             and $observed.size == [$geometry.actual.width, $geometry.actual.height]
           then "applied"
           else "mismatch"

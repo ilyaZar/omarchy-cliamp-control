@@ -12,8 +12,8 @@ if [[ -r $BINDINGS_FILE ]]; then
   target_line=$(awk '
     {
       line = tolower($0)
-      matches_description = line ~ /cliamp drop-down/
-      matches_command = line ~ /quake_toggle\.sh[[:space:]]+music/
+      matches_description = line ~ /(cliamp drop-down|music tui)/
+      matches_command = line ~ /(toggle_cliamp\.sh|quake_toggle\.sh[[:space:]]+music|omarchy-launch-(or-focus-)?tui[[:space:]]+cliamp)/
       if (matches_description || matches_command) {
         print NR
         exit

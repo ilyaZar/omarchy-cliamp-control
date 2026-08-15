@@ -19,11 +19,11 @@ readonly EDITOR_STATE="$XDG_STATE_HOME/omarchy/defaults/editor"
 mkdir -p "$(dirname "$BINDINGS_FILE")" "$(dirname "$EDITOR_STATE")" \
   "$MOCK_BIN"
 printf '%s\n' \
-  '-- Drop-down windows' \
+  '-- Personal application bindings' \
   'o.bind(' \
-  '  "F12",' \
-  '  "CLIamp drop-down",' \
-  '  "~/.config/hypr/scripts/quake_toggle.sh music"' \
+  '  "SUPER + SHIFT + ALT + M",' \
+  '  "Music TUI",' \
+  '  "omarchy-launch-or-focus-tui cliamp"' \
   ')' >"$BINDINGS_FILE"
 printf 'nvim\n' >"$EDITOR_STATE"
 

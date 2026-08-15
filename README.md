@@ -1,97 +1,99 @@
 # CLIamp Window Control for Omarchy Quattro
 
-A small Omarchy Quattro plugin that keeps the existing CLIamp quake window at
-an exact size directly below the top bar. Its bar control uses the classic
-Winamp lightning-bolt logo.
+A self-contained Omarchy Quattro plugin that turns the stock CLIamp terminal
+into a configurable drop-down window. Its bar control uses the classic Winamp
+lightning-bolt logo.
 
-The plugin is intentionally narrow:
-
-- Left click toggles the existing CLIamp quake window.
-- Right click opens the window settings.
+- Left click shows or hides the CLIamp drop-down.
+- Right click opens alignment and size settings.
 - Horizontal alignment is Left, Center, or Right.
 - Width and height use editable numeric fields with 50 px arrow steps.
-- The effective keybinding is shown in a human-readable form.
-- Hiding the bar icon requires an explicit confirmation.
-- The bar icon can be hidden without stopping geometry management.
+- The effective stock launch binding is shown in a human-readable form.
+- Hiding the bar icon requires explicit confirmation.
+- Geometry management continues while the bar icon is hidden.
 
-"Center" affects x only. The y coordinate always starts at the top edge of the
-monitor's usable rectangle, directly below its top reserved region.
+"Center" affects x only. The y coordinate starts at the top of the monitor's
+usable rectangle, below any reserved screen area.
 
 ## Requirements
 
 - Omarchy Quattro with the manifest-based shell plugin runtime
 - Hyprland 0.55 or newer with the Lua provider
 - `bash`, `jq`, and `hyprctl`
-- The existing CLIamp quake integration at
-  `~/.config/hypr/scripts/quake_toggle.sh music`
-- A client class of exactly `org.omarchy.quake.music`
+- `cliamp`, which is included in a standard Omarchy installation
 
-The plugin does not install CLIamp, change its audio sources, rewrite
-Hyprland keybindings, or launch a second process when a CLIamp client exists.
+The plugin does not change CLIamp's audio sources or rewrite Hyprland
+keybindings. It uses Omarchy's stock `org.omarchy.cliamp` app ID and native TUI
+launcher. Existing `org.omarchy.quake.music` windows remain supported so users
+can migrate without creating a second CLIamp process.
 
 ## Install
 
-After the repository is published, install it disabled for review:
+Install and enable the plugin with Omarchy's native plugin command:
 
 ```bash
 omarchy plugin add \
-  https://github.com/ilyaZar/omarchy-cliamp-control.git
-~/.config/omarchy/plugins/io.github.ilyazar.cliamp/setup.sh
-omarchy plugin enable io.github.ilyazar.cliamp
+  https://github.com/ilyaZar/omarchy-cliamp-control.git --enable
 ```
 
-Native `omarchy plugin add` deliberately runs no hooks. The explicit
-`setup.sh` step installs only the recovery command, desktop entry, and launcher
-icon. It does not enable the plugin.
+No setup hook or user-configuration change is required. Omarchy clones the
+complete runtime, launcher, recovery helper, and assets into the plugin
+checkout.
 
-For local development from this checkout:
+For local development, link this checkout into the plugin directory and
+rescan before enabling it:
 
 ```bash
-./setup.sh --link-plugin
+ln -s "$PWD" \
+  ~/.config/omarchy/plugins/io.github.ilyazar.cliamp
+omarchy-shell shell rescanPlugins
 omarchy plugin enable io.github.ilyazar.cliamp
 ```
-
-`--link-plugin` creates a link outside the publishable tree at
-`~/.config/omarchy/plugins/io.github.ilyazar.cliamp`. The repository itself
-contains no symlinks.
 
 ## Settings and behavior
 
 Defaults are Center, 1200 px wide, 600 px high, and icon visible. Valid values
 are stored inline on the widget's `shell.json` layout entry through the shell's
-supported `updateEntryInline` method. The command-line recovery path uses
-`omarchy bar put` and `omarchy bar set` instead of editing `shell.json`.
+supported `updateEntryInline` method. The recovery helper uses `omarchy bar`
+commands instead of editing `shell.json`.
 
-The service reads the same entry from the injected shell configuration. It
-applies changes immediately and listens to relevant Hyprland window,
-workspace, special-workspace, and monitor events. While no CLIamp client
-exists, a fallback check backs off from two seconds to fifteen seconds. There
-is no periodic polling after a client is found.
+The service listens for relevant Hyprland window, workspace, special-workspace,
+and monitor events. It selects `org.omarchy.cliamp`, with the old
+`org.omarchy.quake.music` class as a fallback. A tiled stock CLIamp window is
+floated before its exact size and position are applied.
 
-The service targets only `org.omarchy.quake.music`. It never runs the launcher
-and therefore cannot create duplicate CLIamp processes. The existing
-creation-time 1200 x 600 centered Hyprland rule can remain as a safe fallback;
-the plugin is the dynamic geometry owner after the client appears.
+While no client exists, a fallback check backs off from two seconds to fifteen
+seconds. There is no periodic polling after a client is found. If CLIamp was
+removed from the preinstalled packages, the settings panel reports that it is
+not installed.
+
+Left click calls the included `scripts/toggle_cliamp.sh` helper. It reuses an
+existing supported client or launches stock CLIamp through
+`omarchy-launch-or-focus-tui cliamp`. A stock client is moved to the dedicated
+`special:cliamp` workspace and shown or hidden without creating duplicates.
 
 ## Keybinding
 
-The recommended default is `F12`. Keep the action description exactly
-`CLIamp drop-down` so the settings panel can find the effective binding:
+Stock Omarchy binds `Super+Shift+Alt+M` to `Music TUI`. That binding launches or
+focuses CLIamp, and the plugin then owns its floating geometry. The settings
+panel discovers this effective binding directly from Hyprland.
+
+For true keyboard show/hide behavior, replace the stock binding in
+`~/.config/hypr/bindings.lua` with the included helper:
 
 ```lua
-hl.unbind("F12")
+hl.unbind("SUPER + SHIFT + ALT + M")
 o.bind(
-  "F12",
+  "SUPER + SHIFT + ALT + M",
   "CLIamp drop-down",
-  "command -v cliamp >/dev/null 2>&1 && "
-    .. "~/.config/hypr/scripts/quake_toggle.sh music"
+  "~/.config/omarchy/plugins/io.github.ilyazar.cliamp/"
+    .. "scripts/toggle_cliamp.sh"
 )
 ```
 
-The **Keybinding** row translates Hyprland's effective binding into a friendly
-label such as `F12` or `Super+Shift+M`. Selecting the row opens the matching
-entry in `~/.config/hypr/bindings.lua` using Omarchy's configured editor. The
-plugin only observes this file and never rewrites it.
+The **Launch keybinding** row opens the personal bindings file in Omarchy's
+configured editor. It recognizes the stock `Music TUI` action and the optional
+`CLIamp drop-down` override. The plugin never rewrites the file.
 
 ## Geometry
 
@@ -100,8 +102,8 @@ client selects its reported monitor ID. Only an absent client falls back to the
 focused monitor.
 
 Hyprland reports monitor pixel dimensions before output transform. The plugin
-swaps width and height for odd transforms, divides by scale, and then applies
-the reserved margins in Hyprland's `[left, top, right, bottom]` order:
+swaps width and height for odd transforms, divides by scale, and applies the
+reserved margins in Hyprland's `[left, top, right, bottom]` order:
 
 ```text
 logical width  = transformed pixel width / scale
@@ -112,89 +114,64 @@ usable width   = logical width - reserved left - reserved right
 usable height  = logical height - reserved top - reserved bottom
 ```
 
-Requested width and height are clamped to that usable rectangle. Left uses
-`usable x`, Center adds half the remaining horizontal space, and Right uses
-the usable right edge minus the clamped width. Every result is integral and
-the complete window remains reachable.
+Requested dimensions are clamped to the usable rectangle. Left uses
+`usable x`, Center adds half the remaining horizontal space, and Right uses the
+usable right edge minus the clamped width. Every result is integral and keeps
+the complete window reachable.
 
-The runtime applies the result with current Hyprland Lua dispatchers through
-`hyprctl eval`, using an exact client address. It does not use legacy hyprlang
-dispatch syntax.
+The runtime floats tiled clients, then applies the result with current
+Hyprland Lua dispatchers through `hyprctl eval` and an exact client address. It
+does not use legacy hyprlang dispatch syntax.
 
-## Hide, disable, and recover
+## Hide and recover
 
 These states are deliberately different:
 
-- **Hide icon** sets `iconVisible` to false. The widget collapses to zero width,
-  consumes no bar gap, and its enabled service keeps running. A confirmation
-  warns how to restore the icon before applying this action.
-- **Disable or remove bar entry** removes the plugin's only `shell.json`
-  reference. Omarchy then unloads the third-party service.
-- **Remove plugin** removes the plugin checkout and shell registration. Native
-  removal does not own the separate recovery integration.
+- **Hide icon** sets `iconVisible` to false. The widget consumes no bar gap and
+  its enabled service keeps running.
+- **Remove bar entry** removes the widget while leaving the installed plugin
+  available.
+- **Remove plugin** removes its checkout and shell registration.
 
-Restore a hidden, disabled, or removed bar entry without creating duplicates:
-
-```bash
-cliamp-widget
-cliamp-widget show
-cliamp-widget hide
-cliamp-widget status
-```
-
-With no arguments, `cliamp-widget` rescans plugins, idempotently puts the
-widget in its default right section when absent, and clears `iconVisible`.
-
-The same no-argument action is installed as the standard XDG desktop entry
-**Restore CLIamp Widget**. Omarchy's application library watches
-`~/.local/share/applications`, so no Quattro `menu` plugin kind is involved.
-
-## External setup state
-
-`setup.sh` owns only these files:
-
-```text
-~/.local/bin/cliamp-widget
-~/.local/share/applications/io.github.ilyazar.cliamp.restore.desktop
-~/.local/share/icons/hicolor/scalable/apps/io.github.ilyazar.cliamp.svg
-```
-
-Remove that integration without touching shell settings or CLIamp:
+Restore a hidden or removed bar entry with the helper inside the native plugin
+checkout:
 
 ```bash
-./remove.sh
+~/.config/omarchy/plugins/io.github.ilyazar.cliamp/bin/cliamp-widget
 ```
 
-For a local development link, use `./remove.sh --unlink-plugin`. For a native
-installation, remove the plugin separately:
+The helper rescans plugins, idempotently puts the widget in its default right
+section when absent, and clears `iconVisible`. It also supports `show`, `hide`,
+and `status` subcommands.
+
+Remove the plugin without leaving external setup files behind:
 
 ```bash
 omarchy plugin remove io.github.ilyazar.cliamp
 ```
 
-Modified setup-owned files are preserved rather than deleted.
-
 ## Validate
 
 ```bash
 omarchy plugin validate .
-bash -n bin/cliamp-widget scripts/*.sh tests/*.sh *.sh
+bash -n bin/cliamp-widget lib/*.sh scripts/*.sh tests/*.sh *.sh
 shellcheck bin/cliamp-widget lib/*.sh scripts/*.sh tests/*.sh *.sh
 tests/test_geometry.sh
+tests/test_apply_geometry.sh
+tests/test_toggle.sh
 tests/test_keybindings.sh
 tests/test_recovery.sh
-tests/test_setup.sh
 qmllint -I /usr/share/omarchy/shell Service.qml BarWidget.qml
 ```
 
-Geometry tests cover landscape and portrait outputs, non-zero origins,
-rotation, scaling, all reserved margins, every alignment, multiple widths,
-oversized requests, and absent-client to created-client monitor selection.
+The tests cover transformed and scaled monitors, reserved margins, exact
+floating geometry, stock and legacy client selection, launch/show/hide
+behavior, effective binding targeting, and idempotent icon recovery.
 
 ## Logo license
 
 The unmodified classic Winamp logo is redistributed under the permission and
 attribution recorded in [`assets/README.md`](assets/README.md). It is a
 trademark of its respective owner. This plugin is unofficial and is not
-affiliated with or endorsed by Winamp or its owner. Plugin code is MIT licensed;
-the logo keeps its separately documented terms.
+affiliated with or endorsed by Winamp or its owner. Plugin code is MIT
+licensed; the logo keeps its separately documented terms.

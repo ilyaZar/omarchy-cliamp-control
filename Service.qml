@@ -120,6 +120,9 @@ Item {
       if (lastStatus === "absent") {
         lastError = ""
         lastSummary = "Waiting for CLIamp"
+      } else if (lastStatus === "unavailable") {
+        lastError = "CLIamp is not installed"
+        lastSummary = lastError
       } else if (lastStatus === "applied") {
         absentRetryCount = 0
         lastError = parsed.clientCount > 1
@@ -194,6 +197,7 @@ Item {
     interval: Math.min(15000, 2000 * Math.pow(2,
       Math.min(root.absentRetryCount, 3)))
     running: root.lastStatus === "absent"
+      || root.lastStatus === "unavailable"
     repeat: true
     onTriggered: {
       root.absentRetryCount++

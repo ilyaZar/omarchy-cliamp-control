@@ -28,16 +28,16 @@ Panel {
   readonly property color dim: Qt.darker(foreground, 1.5)
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property string quakeScript: Quickshell.env("HOME")
-    + "/.config/hypr/scripts/quake_toggle.sh"
+  readonly property string toggleScript: localPath(
+    Qt.resolvedUrl("scripts/toggle_cliamp.sh"))
   readonly property string keybindingsScript: localPath(
     Qt.resolvedUrl("open-keybindings.sh"))
   readonly property int keybindingIndex: 3
   readonly property int iconIndex: 4
   readonly property int settingsCount: 5
   readonly property string restoreIconWarning:
-    "In the terminal, run `cliamp-widget` to add the tray icon back after "
-      + "hiding it accidentally."
+    "Run `~/.config/omarchy/plugins/io.github.ilyazar.cliamp/bin/"
+      + "cliamp-widget` to restore the bar icon."
   readonly property string tooltip: leftAlignedTooltip([
     "CLIamp",
     "Left click:  toggle",
@@ -54,7 +54,7 @@ Panel {
 
   Shortcuts.HyprlandBinding {
     id: cliampBinding
-    actionDescription: "CLIamp drop-down"
+    actionDescriptions: ["Music TUI", "CLIamp drop-down"]
   }
 
   function validAlignment(value) {
@@ -117,7 +117,7 @@ Panel {
 
   function launchCliamp() {
     close()
-    Quickshell.execDetached(["bash", quakeScript, "music"])
+    Quickshell.execDetached(["bash", toggleScript])
   }
 
   function launchKeybindings() {
@@ -306,7 +306,7 @@ Panel {
 
         MenuRow {
           visible: !root.hideConfirmOpen
-          label: "Keybinding"
+          label: "Launch keybinding"
           value: cliampBinding.label
           hasCursor: root.selectedIndex === root.keybindingIndex
           onHovered: function(on) {
@@ -356,7 +356,7 @@ Panel {
           Text {
             width: parent.width
             text: "1. Horizontal alignment changes along the x-axis.\n"
-              + "2. The top edge sits at the Omarchy bar.\n"
+              + "2. The top edge stays below reserved screen areas.\n"
               + "3. " + root.restoreIconWarning
             color: root.dim
             font.family: root.fontFamily

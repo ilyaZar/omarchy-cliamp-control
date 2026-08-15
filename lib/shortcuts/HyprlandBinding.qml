@@ -7,6 +7,7 @@ Item {
   id: root
 
   property string actionDescription: ""
+  property var actionDescriptions: []
   property string loadingLabel: "..."
   property string notConfiguredLabel: "Unbound"
   property string resolvedLabel: ""
@@ -34,8 +35,10 @@ Item {
   function updateBindings(raw) {
     try {
       var bindings = JSON.parse(raw || "[]")
+      var descriptions = actionDescriptions.length > 0
+        ? actionDescriptions : [actionDescription]
       var binding = ShortcutFormat.findBinding(
-        bindings, root.actionDescription)
+        bindings, descriptions)
       root.resolvedLabel = ShortcutFormat.bindingLabel(binding)
     } catch (error) {
       root.resolvedLabel = ""
@@ -44,6 +47,7 @@ Item {
   }
 
   onActionDescriptionChanged: if (componentReady) root.refresh()
+  onActionDescriptionsChanged: if (componentReady) root.refresh()
   Component.onCompleted: {
     componentReady = true
     refresh()
