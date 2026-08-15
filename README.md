@@ -1,14 +1,15 @@
 # CLIamp Window Control for Omarchy Quattro
 
-A self-contained Omarchy Quattro plugin that turns the stock CLIamp terminal
-into a configurable drop-down window. Its bar control uses the classic Winamp
+A self-contained Omarchy Quattro plugin that gives CLIamp a configurable
+Guake-style drop-down window. Its bar control uses the classic Winamp
 lightning-bolt logo.
 
 - Left click shows or hides the CLIamp drop-down.
 - Right click opens alignment and size settings.
 - Horizontal alignment is Left, Center, or Right.
 - Width and height use editable numeric fields with 50 px arrow steps.
-- The effective stock launch binding is shown in a human-readable form.
+- Existing effective CLIamp bindings trigger the shipped drop-down adapter.
+- Ordinary CLIamp windows launched outside those bindings stay ordinary.
 - Hiding the bar icon requires explicit confirmation.
 - Geometry management continues while the bar icon is hidden.
 
@@ -19,13 +20,14 @@ usable rectangle, below any reserved screen area.
 
 - Omarchy Quattro with the manifest-based shell plugin runtime
 - Hyprland 0.55 or newer with the Lua provider
-- `bash`, `jq`, and `hyprctl`
+- `bash`, `jq`, `lua`, and `hyprctl`
 - `cliamp`, which is included in a standard Omarchy installation
 
-The plugin does not change CLIamp's audio sources or rewrite Hyprland
-keybindings. It uses Omarchy's stock `org.omarchy.cliamp` app ID and native TUI
-launcher. Existing `org.omarchy.quake.music` windows remain supported so users
-can migrate without creating a second CLIamp process.
+The plugin does not change CLIamp's audio sources or edit Hyprland configuration
+files. Its binding adapter launches the managed app ID
+`org.omarchy.cliamp.quake` through Omarchy's native TUI launcher. The ordinary
+`org.omarchy.cliamp` app ID is deliberately excluded. Existing
+`org.omarchy.quake.music` windows remain supported for migration.
 
 ## Install
 
@@ -58,42 +60,37 @@ supported `updateEntryInline` method. The recovery helper uses `omarchy bar`
 commands instead of editing `shell.json`.
 
 The service listens for relevant Hyprland window, workspace, special-workspace,
-and monitor events. It selects `org.omarchy.cliamp`, with the old
-`org.omarchy.quake.music` class as a fallback. A tiled stock CLIamp window is
-floated before its exact size and position are applied.
+and monitor events. It selects only `org.omarchy.cliamp.quake`, with the old
+`org.omarchy.quake.music` class as a migration fallback. A tiled managed window
+is floated before its exact size and position are applied.
 
 While no client exists, a fallback check backs off from two seconds to fifteen
 seconds. There is no periodic polling after a client is found. If CLIamp was
 removed from the preinstalled packages, the settings panel reports that it is
 not installed.
 
-Left click calls the included `scripts/toggle_cliamp.sh` helper. It reuses an
-existing supported client or launches stock CLIamp through
-`omarchy-launch-or-focus-tui cliamp`. A stock client is moved to the dedicated
-`special:cliamp` workspace and shown or hidden without creating duplicates.
+Left click calls the included `scripts/toggle_cliamp.sh` adapter. It reuses an
+existing managed client or launches CLIamp with the plugin-owned app ID. The
+client is moved to `special:cliamp` and shown or hidden without creating
+duplicates. Generic special-workspace mechanics live separately in
+`lib/quake.sh`; CLIamp selection and launch details stay in the thin adapter.
 
 ## Keybinding
 
-Stock Omarchy binds `Super+Shift+Alt+M` to `Music TUI`. That binding launches or
-focuses CLIamp, and the plugin then owns its floating geometry. The settings
-panel discovers this effective binding directly from Hyprland.
+Stock Omarchy binds `Super+Shift+Alt+M` to `Music TUI`. The plugin scans the
+effective Lua configuration and recognizes CLIamp by its launch command, so a
+user may change the key or description. It also recognizes the older
+`quake_toggle.sh music` action. Every matching key is rebound in Hyprland's
+running session to the shipped adapter while the plugin is enabled.
 
-For true keyboard show/hide behavior, replace the stock binding in
-`~/.config/hypr/bindings.lua` with the included helper:
+The source configuration is never rewritten. Disabling or removing the plugin
+reloads the Hyprland configuration so each original action is restored. A
+normal CLIamp launch still uses `org.omarchy.cliamp` and is not resized, moved,
+or hidden by this plugin. This separate app ID is what makes the behavior
+binding-scoped instead of class-wide.
 
-```lua
-hl.unbind("SUPER + SHIFT + ALT + M")
-o.bind(
-  "SUPER + SHIFT + ALT + M",
-  "CLIamp drop-down",
-  "~/.config/omarchy/plugins/io.github.ilyazar.cliamp/"
-    .. "scripts/toggle_cliamp.sh"
-)
-```
-
-The **Launch keybinding** row opens the personal bindings file in Omarchy's
-configured editor. It recognizes the stock `Music TUI` action and the optional
-`CLIamp drop-down` override. The plugin never rewrites the file.
+The **Launch keybinding** row shows all consumed key combinations and opens the
+personal bindings file in Omarchy's configured editor.
 
 ## Geometry
 
@@ -159,14 +156,16 @@ shellcheck bin/cliamp-widget lib/*.sh scripts/*.sh tests/*.sh *.sh
 tests/test_geometry.sh
 tests/test_apply_geometry.sh
 tests/test_toggle.sh
+tests/test_bindings.sh
 tests/test_keybindings.sh
 tests/test_recovery.sh
 qmllint -I /usr/share/omarchy/shell Service.qml BarWidget.qml
 ```
 
 The tests cover transformed and scaled monitors, reserved margins, exact
-floating geometry, stock and legacy client selection, launch/show/hide
-behavior, effective binding targeting, and idempotent icon recovery.
+floating geometry, managed and legacy client selection, launch/show/hide
+behavior, command-based effective binding consumption, ordinary CLIamp
+isolation, and idempotent icon recovery.
 
 ## Logo license
 

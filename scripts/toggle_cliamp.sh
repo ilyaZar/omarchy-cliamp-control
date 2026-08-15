@@ -9,6 +9,8 @@ readonly LEGACY_WORKSPACE="music"
 
 # shellcheck source=lib/clients.sh
 source "$SCRIPT_DIR/../lib/clients.sh"
+# shellcheck source=lib/quake.sh
+source "$SCRIPT_DIR/../lib/quake.sh"
 
 notify_error() {
   hyprctl notify -1 5000 "rgb(ff5555)" "CLIamp: $*" >/dev/null 2>&1 || true
@@ -25,32 +27,7 @@ first_client_json() {
   local clients_json
 
   clients_json="$(hyprctl clients -j)"
-  cliamp_supported_clients_json "$clients_json" | jq -c '.[0] // null'
-}
-
-special_workspace_visible() {
-  local workspace="$1"
-
-  hyprctl monitors -j | jq -e --arg workspace "special:$workspace" '
-    any(.[]; .specialWorkspace.name == $workspace)
-  ' >/dev/null
-}
-
-move_to_special_workspace() {
-  local workspace="$1"
-  local address="$2"
-
-  hyprctl dispatch \
-    "hl.dsp.window.move({ workspace = \"special:$workspace\", follow = false, window = \"address:$address\" })" \
-    >/dev/null
-}
-
-toggle_special_workspace() {
-  local workspace="$1"
-
-  hyprctl dispatch \
-    "hl.dsp.workspace.toggle_special(\"$workspace\")" \
-    >/dev/null
+  cliamp_managed_clients_json "$clients_json" | jq -c '.[0] // null'
 }
 
 workspace_for_client() {
@@ -65,43 +42,24 @@ workspace_for_client() {
   fi
 }
 
-toggle_client() {
-  local client_json="$1"
-  local address current_workspace workspace target_workspace
-
-  address="$(jq -r '.address' <<<"$client_json")"
-  if [[ ! $address =~ ^0x[0-9A-Fa-f]+$ ]]; then
-    notify_error "Hyprland returned an invalid window address"
-    exit 1
-  fi
-
-  workspace="$(workspace_for_client "$client_json")"
-  target_workspace="special:$workspace"
-  current_workspace="$(jq -r '.workspace.name // ""' <<<"$client_json")"
-
-  if [[ $current_workspace != "$target_workspace" ]]; then
-    move_to_special_workspace "$workspace" "$address"
-    if ! special_workspace_visible "$workspace"; then
-      toggle_special_workspace "$workspace"
-    fi
-  else
-    toggle_special_workspace "$workspace"
-  fi
-}
-
 require_command jq
 require_command hyprctl
 
 client_json="$(first_client_json)"
 if [[ $client_json != "null" ]]; then
-  toggle_client "$client_json"
+  workspace="$(workspace_for_client "$client_json")"
+  if ! quake_toggle_client "$client_json" "$workspace"; then
+    notify_error "Hyprland returned an invalid window address"
+    exit 1
+  fi
   exit 0
 fi
 
 require_command cliamp
 require_command omarchy-launch-or-focus-tui
 
-omarchy-launch-or-focus-tui cliamp >/dev/null 2>&1 &
+omarchy-launch-or-focus-tui \
+  "--app-id=$CLIAMP_MANAGED_CLASS" cliamp >/dev/null 2>&1 &
 
 wait_attempts="${CLIAMP_WAIT_ATTEMPTS:-100}"
 wait_interval="${CLIAMP_WAIT_INTERVAL:-0.05}"
@@ -122,4 +80,8 @@ if [[ $client_json == "null" ]]; then
   exit 1
 fi
 
-toggle_client "$client_json"
+workspace="$(workspace_for_client "$client_json")"
+if ! quake_toggle_client "$client_json" "$workspace"; then
+  notify_error "Hyprland returned an invalid window address"
+  exit 1
+fi

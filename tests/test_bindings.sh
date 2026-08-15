@@ -1,0 +1,88 @@
+#!/bin/bash
+
+set -euo pipefail
+
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMP_ROOT="$(mktemp -d)"
+readonly TEST_DIR TEMP_ROOT
+trap 'rm -rf -- "$TEMP_ROOT"' EXIT
+
+readonly MOCK_BIN="$TEMP_ROOT/bin"
+readonly CONFIG_FILE="$TEMP_ROOT/hyprland.lua"
+export CLIAMP_TEST_EXPRESSION="$TEMP_ROOT/expression"
+
+mkdir -p "$MOCK_BIN"
+
+cat >"$CONFIG_FILE" <<'LUA'
+require("default.hypr.helpers")
+o.bind(
+  "SUPER + SHIFT + ALT + M",
+  "My renamed player",
+  { tui = "cliamp", focus = true }
+)
+hl.bind(
+  "F12",
+  hl.dsp.exec_cmd("~/.config/hypr/scripts/quake_toggle.sh music"),
+  { description = "Old music drop-down" }
+)
+hl.unbind("F12")
+hl.bind(
+  "F11",
+  hl.dsp.exec_cmd("~/.config/hypr/scripts/quake_toggle.sh music"),
+  { description = "Moved music drop-down" }
+)
+hl.bind(
+  "SUPER + A",
+  hl.dsp.exec_cmd("omarchy-launch-browser"),
+  { description = "Unrelated" }
+)
+hl.bind(
+  "SUPER + H",
+  hl.dsp.exec_cmd("cliamp --help"),
+  { description = "CLIamp help" }
+)
+hl.bind(
+  "SUPER + K",
+  hl.dsp.exec_cmd("pkill cliamp"),
+  { description = "Stop CLIamp" }
+)
+LUA
+
+cat >"$MOCK_BIN/hyprctl" <<'MOCK'
+#!/bin/bash
+set -euo pipefail
+
+[[ ${1:-} == "eval" ]]
+printf '%s\n' "${2:-}" >"$CLIAMP_TEST_EXPRESSION"
+MOCK
+chmod 0755 "$MOCK_BIN/hyprctl"
+
+result="$(
+  CLIAMP_HYPR_CONFIG="$CONFIG_FILE" \
+    PATH="$MOCK_BIN:$PATH" \
+    "$TEST_DIR/../scripts/sync_bindings.sh"
+)"
+
+jq -e '
+  .status == "managed"
+  and (.bindings | length) == 2
+  and .bindings[0].keys == "F11"
+  and .bindings[1].keys == "SUPER + SHIFT + ALT + M"
+  and .bindings[1].description == "My renamed player"
+' >/dev/null <<<"$result"
+
+grep -Fq 'hl.unbind("F11")' "$CLIAMP_TEST_EXPRESSION"
+grep -Fq 'hl.unbind("SUPER + SHIFT + ALT + M")' \
+  "$CLIAMP_TEST_EXPRESSION"
+grep -Fq 'scripts/toggle_cliamp.sh' "$CLIAMP_TEST_EXPRESSION"
+if grep -Fq 'hl.unbind("F12")' "$CLIAMP_TEST_EXPRESSION"; then
+  printf 'removed binding was incorrectly restored\n' >&2
+  exit 1
+fi
+if grep -Eq 'hl\.unbind\("SUPER \+ (H|K)"\)' \
+  "$CLIAMP_TEST_EXPRESSION"; then
+  printf 'non-launch CLIamp binding was incorrectly consumed\n' >&2
+  exit 1
+fi
+
+printf 'ok - effective CLIamp bindings are consumed by command\n'

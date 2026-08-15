@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import Quickshell
 import qs.Commons
 import qs.Ui
-import "lib/shortcuts" as Shortcuts
 
 Panel {
   id: root
@@ -50,11 +49,6 @@ Panel {
         && result.actual.height === result.requested.height) return ""
     return "Clamped to " + result.actual.width + "x" + result.actual.height
       + " inside " + result.monitor.name
-  }
-
-  Shortcuts.HyprlandBinding {
-    id: cliampBinding
-    actionDescriptions: ["Music TUI", "CLIamp drop-down"]
   }
 
   function validAlignment(value) {
@@ -168,7 +162,6 @@ Panel {
   onOpenedChanged: if (opened) {
     selectedIndex = 0
     hideConfirmOpen = false
-    cliampBinding.refresh()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -307,7 +300,8 @@ Panel {
         MenuRow {
           visible: !root.hideConfirmOpen
           label: "Launch keybinding"
-          value: cliampBinding.label
+          value: root.geometryService
+            ? root.geometryService.bindingLabel : "..."
           hasCursor: root.selectedIndex === root.keybindingIndex
           onHovered: function(on) {
             if (on) root.selectedIndex = root.keybindingIndex

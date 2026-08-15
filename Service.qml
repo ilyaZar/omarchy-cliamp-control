@@ -18,9 +18,16 @@ Item {
   property int absentRetryCount: 0
   property string processOutput: ""
   property string processError: ""
+  property string bindingStatus: "starting"
+  property string bindingLabel: "..."
+  property string bindingOutput: ""
+  property string bindingError: ""
+  property bool bindingRerunPending: false
 
   readonly property string applyScript: localPath(
     Qt.resolvedUrl("scripts/apply_geometry.sh"))
+  readonly property string bindingScript: localPath(
+    Qt.resolvedUrl("scripts/sync_bindings.sh"))
 
   function localPath(url) {
     var value = String(url || "")
@@ -103,6 +110,47 @@ Item {
     applyProcess.running = true
   }
 
+  function syncBindings() {
+    if (bindingProcess.running) {
+      bindingRerunPending = true
+      return
+    }
+    bindingOutput = ""
+    bindingError = ""
+    bindingProcess.command = ["bash", bindingScript]
+    bindingProcess.running = true
+  }
+
+  function acceptBindingResult(exitCode) {
+    var parsed = null
+    try {
+      parsed = JSON.parse(String(bindingOutput || "").trim())
+    } catch (error) {
+      parsed = null
+    }
+
+    if (exitCode === 0 && parsed) {
+      bindingStatus = String(parsed.status || "error")
+      var labels = []
+      var bindings = Array.isArray(parsed.bindings) ? parsed.bindings : []
+      for (var index = 0; index < bindings.length; index++) {
+        var label = String(bindings[index].label || "")
+        if (label !== "") labels.push(label)
+      }
+      bindingLabel = labels.length > 0 ? labels.join(" / ") : "Unbound"
+    } else {
+      bindingStatus = "error"
+      bindingLabel = "Unbound"
+      lastError = String(bindingError || "").trim()
+        || "CLIamp binding adapter failed"
+    }
+
+    if (bindingRerunPending) {
+      bindingRerunPending = false
+      bindingTimer.restart()
+    }
+  }
+
   function acceptResult(exitCode) {
     var parsed = null
     var raw = String(processOutput || "").trim()
@@ -172,6 +220,7 @@ Item {
       "configreloaded"
     ]
     if (relevant.indexOf(name) >= 0) scheduleApply(120)
+    if (name === "configreloaded") bindingTimer.restart()
   }
 
   onShellChanged: refreshSettingsFromShell()
@@ -191,6 +240,12 @@ Item {
     id: applyTimer
     interval: 120
     onTriggered: root.applyGeometry()
+  }
+
+  Timer {
+    id: bindingTimer
+    interval: 250
+    onTriggered: root.syncBindings()
   }
 
   Timer {
@@ -219,8 +274,27 @@ Item {
     onExited: function(exitCode) { root.acceptResult(exitCode) }
   }
 
+  Process {
+    id: bindingProcess
+
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.bindingOutput = text
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.bindingError = text
+    }
+    onExited: function(exitCode) { root.acceptBindingResult(exitCode) }
+  }
+
   Component.onCompleted: Qt.callLater(function() {
     root.refreshSettingsFromShell()
     root.scheduleApply(30)
+    root.syncBindings()
   })
+
+  Component.onDestruction: Quickshell.execDetached([
+    "hyprctl", "reload", "config-only"
+  ])
 }

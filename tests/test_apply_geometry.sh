@@ -24,8 +24,8 @@ case "${1:-}" in
 [
   {
     "address": "0xabc",
-    "class": "org.omarchy.cliamp",
-    "initialClass": "org.omarchy.cliamp",
+    "class": "org.omarchy.cliamp.quake",
+    "initialClass": "org.omarchy.cliamp.quake",
     "monitor": 1,
     "workspace": {"name": "3"},
     "at": [360, 26],
@@ -39,8 +39,8 @@ JSON
 [
   {
     "address": "0xabc",
-    "class": "org.omarchy.cliamp",
-    "initialClass": "org.omarchy.cliamp",
+    "class": "org.omarchy.cliamp.quake",
+    "initialClass": "org.omarchy.cliamp.quake",
     "monitor": 1,
     "workspace": {"name": "3"},
     "at": [0, 0],
@@ -105,4 +105,4 @@ grep -Fq 'hl.dsp.window.float' "$CLIAMP_TEST_EXPRESSION"
 grep -Fq 'hl.dsp.window.resize' "$CLIAMP_TEST_EXPRESSION"
 grep -Fq 'hl.dsp.window.move' "$CLIAMP_TEST_EXPRESSION"
 
-printf 'ok - stock client floats before geometry\n'
+printf 'ok - managed client floats before geometry\n'

@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.ilyazar.cliamp",
   "name": "CLIamp Window Control",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "ilyaZar",
   "license": "MIT",
-  "description": "Turns stock Omarchy CLIamp into a configurable drop-down window with compact bar controls.",
+  "description": "Adds a binding-scoped CLIamp drop-down with configurable top-edge geometry and compact bar controls.",
   "kinds": [
     "service",
     "bar-widget"

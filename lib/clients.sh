@@ -1,28 +1,29 @@
 # shellcheck shell=bash
 
-# Shared CLIamp client selection for runtime helpers.
+# Shared managed CLIamp client selection for runtime helpers.
 
-CLIAMP_STOCK_CLASS="org.omarchy.cliamp"
+CLIAMP_MANAGED_CLASS="org.omarchy.cliamp.quake"
 CLIAMP_LEGACY_CLASS="org.omarchy.quake.music"
-readonly CLIAMP_STOCK_CLASS CLIAMP_LEGACY_CLASS
+readonly CLIAMP_MANAGED_CLASS CLIAMP_LEGACY_CLASS
 
-cliamp_supported_clients_json() {
+cliamp_managed_clients_json() {
   local clients_json="${1:-[]}"
 
   jq -c \
-    --arg stock "$CLIAMP_STOCK_CLASS" \
+    --arg managed "$CLIAMP_MANAGED_CLASS" \
     --arg legacy "$CLIAMP_LEGACY_CLASS" '
       [
         .[]
         | select(
-            .class == $stock
-            or .initialClass == $stock
+            .class == $managed
+            or .initialClass == $managed
             or .class == $legacy
             or .initialClass == $legacy
           )
         | . + {
             _cliampRank: (
-              if .class == $stock or .initialClass == $stock then 0 else 1 end
+              if .class == $managed or .initialClass == $managed
+              then 0 else 1 end
             )
           }
       ]

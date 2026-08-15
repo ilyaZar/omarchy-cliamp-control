@@ -30,14 +30,16 @@ client_json() {
 case "${1:-}" in
   clients)
     mode="$(cat "$CLIAMP_TEST_MODE")"
-    if [[ $mode == "absent" && -e $CLIAMP_TEST_LAUNCHED ]]; then
-      mode="normal"
+    if [[ ( $mode == "absent" || $mode == "stock" ) \
+      && -e $CLIAMP_TEST_LAUNCHED ]]; then
+      mode="managed"
       printf '%s\n' "$mode" >"$CLIAMP_TEST_MODE"
     fi
     case "$mode" in
       absent) printf '[]\n' ;;
-      normal) client_json "org.omarchy.cliamp" "3" ;;
-      special) client_json "org.omarchy.cliamp" "special:cliamp" ;;
+      managed) client_json "org.omarchy.cliamp.quake" "3" ;;
+      special) client_json "org.omarchy.cliamp.quake" "special:cliamp" ;;
+      stock) client_json "org.omarchy.cliamp" "3" ;;
       legacy) client_json "org.omarchy.quake.music" "special:music" ;;
       *) exit 2 ;;
     esac
@@ -108,7 +110,8 @@ run_toggle() {
 
 reset_case absent ""
 run_toggle
-grep -Fxq 'cliamp' "$CLIAMP_TEST_CALLS"
+grep -Fxq -- '--app-id=org.omarchy.cliamp.quake cliamp' \
+  "$CLIAMP_TEST_CALLS"
 grep -Fq 'workspace = "special:cliamp"' "$CLIAMP_TEST_CALLS"
 grep -Fq 'toggle_special("cliamp")' "$CLIAMP_TEST_CALLS"
 [[ $(cat "$CLIAMP_TEST_VISIBLE") == "special:cliamp" ]]
@@ -124,14 +127,20 @@ run_toggle
 [[ $(cat "$CLIAMP_TEST_VISIBLE") == "special:cliamp" ]]
 [[ $(grep -Fc 'toggle_special("cliamp")' "$CLIAMP_TEST_CALLS") -eq 1 ]]
 
-reset_case normal ""
+reset_case managed ""
 run_toggle
 grep -Fq 'workspace = "special:cliamp"' "$CLIAMP_TEST_CALLS"
 [[ $(cat "$CLIAMP_TEST_VISIBLE") == "special:cliamp" ]]
+
+reset_case stock ""
+run_toggle
+grep -Fxq -- '--app-id=org.omarchy.cliamp.quake cliamp' \
+  "$CLIAMP_TEST_CALLS"
+grep -Fq 'workspace = "special:cliamp"' "$CLIAMP_TEST_CALLS"
 
 reset_case legacy "special:music"
 run_toggle
 [[ ! -s $CLIAMP_TEST_VISIBLE ]]
 [[ $(grep -Fc 'toggle_special("music")' "$CLIAMP_TEST_CALLS") -eq 1 ]]
 
-printf 'ok - stock and legacy drop-down toggles\n'
+printf 'ok - binding-managed and legacy drop-down toggles\n'

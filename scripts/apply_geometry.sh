@@ -30,7 +30,7 @@ fi
 
 clients_json="$(hyprctl clients -j)"
 monitors_json="$(hyprctl monitors -j)"
-matched_clients="$(cliamp_supported_clients_json "$clients_json")"
+matched_clients="$(cliamp_managed_clients_json "$clients_json")"
 client_count="$(jq -r 'length' <<<"$matched_clients")"
 client_json="$(jq -c '.[0] // null' <<<"$matched_clients")"
 
